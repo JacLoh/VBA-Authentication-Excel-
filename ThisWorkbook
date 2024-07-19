@@ -1,0 +1,142 @@
+Private Sub Workbook_SheetChange(ByVal Sh As Object, ByVal Target As Range)
+    Dim logSheets As Collection
+    Set logSheets = New Collection
+
+    ' Define the tracking configurations
+    logSheets.Add Array("Notebooks returned", "D", "History Log", 1) ' Column D in "Notebooks returned" logs to "History Log", starting from column 1 (A)
+    logSheets.Add Array("Notebooks returned", "E", "History Log", 1) ' Column E in "Notebooks returned" logs to "History Log", starting from column 5 (E)
+    logSheets.Add Array("Notebooks returned", "F", "History Log", 1) ' Column F in "Notebooks returned" logs to "History Log", starting from column 9 (I)
+    ' Add more configurations as needed
+
+    ' Iterate through the tracking configurations
+    Dim config As Variant
+    For Each config In logSheets
+        Dim trackedSheet As String
+        Dim trackedColumn As String
+        Dim logSheetName As String
+        Dim logColumn As Long
+        
+        trackedSheet = config(0)
+        trackedColumn = config(1)
+        logSheetName = config(2)
+        logColumn = config(3)
+
+        ' Check if the changed cell matches the current configuration
+        If Sh.Name = trackedSheet And Target.Column = Columns(trackedColumn).Column Then
+            Dim logSheet As Worksheet
+            On Error Resume Next
+            Set logSheet = ThisWorkbook.Sheets(logSheetName)
+            On Error GoTo 0
+            
+            If logSheet Is Nothing Then
+                MsgBox "Worksheet '" & logSheetName & "' not found. Check your configuration.", vbExclamation
+                Exit Sub
+            End If
+
+            Dim newRow As Long
+            newRow = logSheet.Cells(logSheet.Rows.Count, logColumn).End(xlUp).Row + 1
+
+            ' Lookup Engineer name based on UserName in "AuthorizedUsers" worksheet
+            Dim userName As String
+            userName = UserForm1.userName ' Assuming UserForm1.UserName is correctly set
+            
+            Dim engineerName As Variant
+            engineerName = Application.VLookup(userName, ThisWorkbook.Sheets("AuthorizedUsers").Range("A:B"), 2, False)
+            
+            If Not IsError(engineerName) Then
+                ' Log the details of the change with engineer name
+                logSheet.Cells(newRow, logColumn).Value = Now ' Timestamp
+                logSheet.Cells(newRow, logColumn + 1).Value = engineerName ' Engineer name
+                logSheet.Cells(newRow, logColumn + 2).Value = Sh.Name ' Sheet name
+                logSheet.Cells(newRow, logColumn + 3).Value = Target.Address ' Cell address
+                logSheet.Cells(newRow, logColumn + 4).Value = Target.Value ' New value
+            Else
+                MsgBox "Engineer not found for username '" & userName & "'.", vbExclamation
+            End If
+        End If
+    Next config
+    
+    ' Check if the change is in column F (Serial No) of "Notebooks returned" worksheet
+    If Sh.Name = "Notebooks returned" And Target.Column = 6 And Target.Row > 1 Then
+        Dim serialNumber As String
+        serialNumber = Target.Value
+        
+        ' Perform VLOOKUP to get Computer Name, Model, and Full Name from "Computer Details (For Vlookup)" worksheet
+        Dim computerName As Variant
+        Dim model As Variant
+        Dim fullName As Variant
+        
+        On Error Resume Next
+        computerName = Application.WorksheetFunction.VLookup(serialNumber, ThisWorkbook.Sheets("Computer Details (For Vlookup)").Range("A:D"), 2, False)
+        model = Application.WorksheetFunction.VLookup(serialNumber, ThisWorkbook.Sheets("Computer Details (For Vlookup)").Range("A:D"), 3, False)
+        fullName = Application.WorksheetFunction.VLookup(serialNumber, ThisWorkbook.Sheets("Computer Details (For Vlookup)").Range("A:D"), 4, False)
+        On Error GoTo 0
+        
+        ' Check for errors in VLOOKUP results and update columns D, E, and B in "Notebooks returned" worksheet
+        If Not IsError(computerName) Then
+            Sh.Cells(Target.Row, 4).Value = computerName
+        Else
+            Sh.Cells(Target.Row, 4).Value = "Not found"
+        End If
+        
+        If Not IsError(model) Then
+            Sh.Cells(Target.Row, 5).Value = model
+        Else
+            Sh.Cells(Target.Row, 5).Value = "Not found"
+        End If
+        
+        If Not IsError(fullName) Then
+            Sh.Cells(Target.Row, 2).Value = fullName
+        Else
+            Sh.Cells(Target.Row, 2).Value = "Not found"
+        End If
+        
+        ' Lookup Engineer name based on UserName in "AuthorizedUsers" worksheet
+        userName = UserForm1.userName ' Assuming UserForm1.UserName is correctly set
+        
+        engineerName = Application.VLookup(userName, ThisWorkbook.Sheets("AuthorizedUsers").Range("A:B"), 2, False)
+        
+        If Not IsError(engineerName) Then
+            Sh.Cells(Target.Row, 9).Value = engineerName
+        Else
+            Sh.Cells(Target.Row, 9).Value = "Engineer Not Found"
+        End If
+    End If
+End Sub
+
+
+Private Sub Workbook_Open()
+    ' Show the UserForm to get the username
+    UserForm1.Show
+    
+    Dim authorized As Boolean
+    authorized = CheckUserAccess(UserForm1.userName)
+    
+    If Not authorized Then
+        MsgBox "You are not authorized to access this file.", vbCritical
+        ThisWorkbook.Close SaveChanges:=False
+    Else
+        ' Hide the UserForm
+        UserForm1.Hide
+    End If
+End Sub
+
+Function CheckUserAccess(userName As String) As Boolean
+    Dim ws As Worksheet
+    Dim cell As Range
+    
+    ' Assume the user is not authorized
+    CheckUserAccess = False
+    
+    ' Set the worksheet with the list of authorized users
+    Set ws = ThisWorkbook.Sheets("AuthorizedUsers")
+    
+    ' Loop through the list of authorized users
+    For Each cell In ws.Range("A1:A" & ws.Cells(ws.Rows.Count, "A").End(xlUp).Row)
+        If cell.Value = userName Then
+            ' If the user's name is found in the list, they are authorized
+            CheckUserAccess = True
+            Exit Function
+        End If
+    Next cell
+End Function
