@@ -1,0 +1,18 @@
+Public userName As String
+
+Private Sub CommandButton1_Click()
+    ' Store the entered username in the public variable
+    userName = TextBox1.Text
+    
+    ' Check if username is entered
+    If TextBox1.Value <> "" Then
+        ' Hide the UserForm
+        Me.Hide
+    Else
+        MsgBox "Please enter your username.", vbExclamation
+    End If
+End Sub
+
+Private Sub UserForm_Click()
+
+End Sub
