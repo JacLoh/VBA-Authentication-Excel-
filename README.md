@@ -1,4 +1,4 @@
-# VBA code for authentication and a history log for tracking.
+# VBA code for Authentication and a History Log for tracking.
 The VBA Code serves an excel document to allow authentication and history log tracking. 
 
 ## Authentication
