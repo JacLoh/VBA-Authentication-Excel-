@@ -1,0 +1,24 @@
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Dim cell As Range
+    Dim rng As Range
+
+    ' Specify the range where edits will occur (e.g., column F)
+    Set rng = Range("$F:$F")
+
+    ' Check if the edited cell is within the specified range
+    If Not Intersect(Target, rng) Is Nothing Then
+        Application.EnableEvents = False
+        For Each cell In Intersect(Target, rng)
+            ' Only update the date if the cell value is not empty
+            If Not VBA.IsEmpty(cell.Value) Then
+                cell.Offset(0, 2).Value = Now
+                cell.Offset(0, 2).NumberFormat = "dd-mmm-yy"
+            Else
+                ' Clear the date when the serial number is deleted
+                cell.Offset(0, 2).ClearContents
+            End If
+        Next cell
+        Application.EnableEvents = True
+    End If
+End Sub
+
